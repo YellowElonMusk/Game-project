@@ -173,7 +173,9 @@ export default class Cat {
     return HEAD_RADIUS * 0.7 * scale;
   }
   get tailRadius() {
-    return HEAD_RADIUS * 0.35;
+    // Fluffy tail — scales slightly with growth
+    const scale = 1 + Math.min(this.growthLevel, 10) / 20;
+    return HEAD_RADIUS * 0.65 * scale;
   }
   get headRadius() {
     const scale = 1 + Math.min(this.growthLevel, this.maxBodySegments - BASE_BODY_SEGMENTS) / (this.maxBodySegments);
