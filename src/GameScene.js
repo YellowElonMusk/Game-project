@@ -364,60 +364,49 @@ export default class GameScene extends Phaser.Scene {
     const g = this.catGfx;
     const color = cat.color;
     const darkColor = Phaser.Display.Color.IntegerToColor(color).darken(30).color;
-    const lightColor = Phaser.Display.Color.IntegerToColor(color).brighten(20).color;
+    const lightColor = Phaser.Display.Color.IntegerToColor(color).brighten(30).color;
 
     const hx = cat.x;
     const hy = cat.y;
     const hr = cat.headRadius;
     const angle = cat.headAngle;
 
-    // === TAIL (drawn first, behind everything) ===
-    // Fluffy layered tail — multiple passes for fur volume
+    // === TAIL (simple chunky tail) ===
     const tailLen = cat.tailChain.length;
     if (tailLen > 0) {
-      // Fluffy outer layer (big soft circles)
-      for (let i = tailLen - 1; i >= 0; i--) {
-        const seg = cat.tailChain[i];
-        const t = 1 - (i / Math.max(tailLen, 1));   // 1 at base, 0 at tip
-        const baseR = cat.tailRadius * (0.4 + 0.6 * t);
-        const fluffR = baseR + 6 + 3 * Math.sin(this.time.now * 0.004 + i * 0.7);
-
-        g.fillStyle(color, 0.25);
-        g.fillCircle(seg.pos.x, seg.pos.y, fluffR + 4);
-        g.fillStyle(lightColor, 0.2);
-        g.fillCircle(seg.pos.x, seg.pos.y, fluffR + 2);
-      }
-      // Main tail layer
+      // Outline pass
       for (let i = tailLen - 1; i >= 0; i--) {
         const seg = cat.tailChain[i];
         const t = 1 - (i / Math.max(tailLen, 1));
-        const baseR = cat.tailRadius * (0.4 + 0.6 * t);
-
-        g.fillStyle(darkColor, 0.9);
+        const baseR = cat.tailRadius * (0.35 + 0.65 * t);
+        g.fillStyle(darkColor, 1);
         g.fillCircle(seg.pos.x, seg.pos.y, baseR + 2);
-        g.fillStyle(color, 0.95);
+      }
+      // Fill pass
+      for (let i = tailLen - 1; i >= 0; i--) {
+        const seg = cat.tailChain[i];
+        const t = 1 - (i / Math.max(tailLen, 1));
+        const baseR = cat.tailRadius * (0.35 + 0.65 * t);
+        g.fillStyle(color, 1);
         g.fillCircle(seg.pos.x, seg.pos.y, baseR);
       }
-      // Fluffy tip tuft
+      // Round tip
       const tip = cat.tailChain[tailLen - 1];
-      const tipR = cat.tailRadius * 0.5;
-      for (let j = 0; j < 5; j++) {
-        const a = (j / 5) * Math.PI * 2 + this.time.now * 0.003;
-        const ox = Math.cos(a) * tipR * 0.6;
-        const oy = Math.sin(a) * tipR * 0.6;
-        g.fillStyle(color, 0.4);
-        g.fillCircle(tip.pos.x + ox, tip.pos.y + oy, tipR + 2);
-      }
+      const tipR = cat.tailRadius * 0.4;
+      g.fillStyle(darkColor, 1);
+      g.fillCircle(tip.pos.x, tip.pos.y, tipR + 1);
+      g.fillStyle(color, 1);
+      g.fillCircle(tip.pos.x, tip.pos.y, tipR);
     }
 
-    // === BODY SEGMENTS (torso) ===
-    // Draw back-to-front for proper overlap
+    // === BODY SEGMENTS (round blobby torso) ===
+    // Draw back-to-front for overlap
     for (let i = cat.bodyChain.length - 1; i >= 0; i--) {
       const seg = cat.bodyChain[i];
-      const t = 1 - (i / cat.bodyChain.length); // 1 near head, 0 near tail
-      // Belly shape: thicker in the middle, tapers at ends
-      const bellyCurve = Math.sin(t * Math.PI);     // peaks at t=0.5
-      const radius = cat.bodyRadius * (0.55 + 0.45 * bellyCurve);
+      const t = 1 - (i / cat.bodyChain.length);
+      // Fat belly curve — much rounder/chunkier than before
+      const bellyCurve = Math.sin(t * Math.PI);
+      const radius = cat.bodyRadius * (0.65 + 0.45 * bellyCurve);
 
       // Outline
       g.fillStyle(darkColor, 1);
@@ -426,20 +415,16 @@ export default class GameScene extends Phaser.Scene {
       g.fillStyle(color, 1);
       g.fillCircle(seg.pos.x, seg.pos.y, radius);
 
-      // Belly highlight on the middle segments
-      if (t > 0.25 && t < 0.75) {
-        g.fillStyle(lightColor, 0.25);
-        // Offset belly highlight slightly perpendicular to body direction
-        const bx = seg.pos.x;
-        const by = seg.pos.y;
-        g.fillCircle(bx, by, radius * 0.6);
+      // White belly highlight on middle segments
+      if (t > 0.2 && t < 0.8) {
+        g.fillStyle(0xffffff, 0.15);
+        g.fillCircle(seg.pos.x, seg.pos.y, radius * 0.55);
       }
     }
 
-    // === LEGS (little stubs on mid-body) ===
+    // === LEGS (tiny stubby legs — barely visible, cute) ===
     const bodyLen = cat.bodyChain.length;
     if (bodyLen >= 4) {
-      // Front legs (segment ~25% from head) and back legs (~75%)
       const frontIdx = Math.floor(bodyLen * 0.2);
       const backIdx  = Math.floor(bodyLen * 0.7);
       const legPairs = [
@@ -449,148 +434,134 @@ export default class GameScene extends Phaser.Scene {
       for (const lp of legPairs) {
         const sx = lp.seg.pos.x;
         const sy = lp.seg.pos.y;
-        // Compute body direction at this segment for perpendicular legs
-        const legLen = cat.bodyRadius * 0.7;
-        const wiggle = Math.sin(this.time.now * 0.012 + lp.phase) * 0.2;
+        const legLen = cat.bodyRadius * 0.55;
+        const wiggle = Math.sin(this.time.now * 0.012 + lp.phase) * 0.15;
         for (const side of [-1, 1]) {
           const perpAngle = angle + Math.PI / 2 * side + wiggle * side;
           const lx = sx + Math.cos(perpAngle) * legLen;
           const ly = sy + Math.sin(perpAngle) * legLen;
-          // Leg
-          g.lineStyle(Math.max(3, cat.bodyRadius * 0.3), darkColor, 0.9);
+          // Stubby round leg
+          g.lineStyle(Math.max(4, cat.bodyRadius * 0.35), color, 1);
           g.lineBetween(sx, sy, lx, ly);
-          // Paw (round tip)
+          // Round paw
           g.fillStyle(darkColor, 1);
-          g.fillCircle(lx, ly, Math.max(2.5, cat.bodyRadius * 0.18));
+          g.fillCircle(lx, ly, Math.max(3, cat.bodyRadius * 0.2));
         }
       }
     }
 
-    // === HEAD ===
-    // Head outline
+    // === HEAD (big round blob head) ===
+    // Outline
     g.fillStyle(darkColor, 1);
-    g.fillCircle(hx, hy, hr + 2);
-    // Head fill — slightly oval (wider than tall)
+    g.fillCircle(hx, hy, hr + 2.5);
+    // Fill
     g.fillStyle(color, 1);
     g.fillCircle(hx, hy, hr);
 
-    // Cheek fluff (wider face)
+    // Chubby cheeks (wider face, blob-like)
     for (const side of [-1, 1]) {
-      const cx = hx + Math.cos(angle + Math.PI / 2 * side) * hr * 0.55;
-      const cy = hy + Math.sin(angle + Math.PI / 2 * side) * hr * 0.55;
+      const cx = hx + Math.cos(angle + Math.PI / 2 * side) * hr * 0.45;
+      const cy = hy + Math.sin(angle + Math.PI / 2 * side) * hr * 0.45;
       g.fillStyle(color, 1);
-      g.fillCircle(cx, cy, hr * 0.5);
-      // Lighter cheek puff
-      g.fillStyle(lightColor, 0.2);
-      g.fillCircle(cx, cy, hr * 0.35);
+      g.fillCircle(cx, cy, hr * 0.55);
     }
 
-    // === EARS (big, pointy, prominent) ===
-    const earDist = hr * 0.82;
-    const earH = hr * 0.85; // tall ears
-    const earW = hr * 0.38;
+    // White muzzle area (lower face)
+    const muzzleX = hx + Math.cos(angle) * hr * 0.25;
+    const muzzleY = hy + Math.sin(angle) * hr * 0.25;
+    g.fillStyle(0xffffff, 0.2);
+    g.fillCircle(muzzleX, muzzleY, hr * 0.4);
+
+    // === EARS (small, simple triangles) ===
+    const earDist = hr * 0.75;
+    const earH = hr * 0.55;
+    const earW = hr * 0.32;
     for (const side of [-1, 1]) {
-      // Ear base center — angled back slightly
-      const earAngle = angle + Math.PI * 0.5 * side * 0.45 - Math.PI * 0.15;
-      const ebx = hx + Math.cos(angle + Math.PI * 0.5 * side * 0.5) * earDist;
-      const eby = hy + Math.sin(angle + Math.PI * 0.5 * side * 0.5) * earDist;
-      // Ear tip
-      const upAngle = angle - Math.PI / 2; // "up" from head
-      const tipAngle = upAngle + side * 0.4;
+      const ebx = hx + Math.cos(angle + Math.PI * 0.5 * side * 0.55) * earDist;
+      const eby = hy + Math.sin(angle + Math.PI * 0.5 * side * 0.55) * earDist;
+      // Ear tip — points "up" and slightly outward
+      const upAngle = angle - Math.PI / 2;
+      const tipAngle = upAngle + side * 0.35;
       const tx = ebx + Math.cos(tipAngle) * earH;
       const ty = eby + Math.sin(tipAngle) * earH;
-      // Ear base corners
+      // Base corners
+      const earAngle = angle + Math.PI * 0.5 * side * 0.45;
       const perpA = earAngle + Math.PI / 2;
       const b1x = ebx + Math.cos(perpA) * earW;
       const b1y = eby + Math.sin(perpA) * earW;
       const b2x = ebx - Math.cos(perpA) * earW;
       const b2y = eby - Math.sin(perpA) * earW;
 
-      // Outer ear
+      // Outer ear (cat color)
       g.fillStyle(darkColor, 1);
       g.fillTriangle(b1x, b1y, b2x, b2y, tx, ty);
       // Inner ear (pink)
-      const shrink = 0.6;
-      const ib1x = ebx + Math.cos(perpA) * earW * shrink;
-      const ib1y = eby + Math.sin(perpA) * earW * shrink;
-      const ib2x = ebx - Math.cos(perpA) * earW * shrink;
-      const ib2y = eby - Math.sin(perpA) * earW * shrink;
-      const itx = ebx + (tx - ebx) * 0.8;
-      const ity = eby + (ty - eby) * 0.8;
-      g.fillStyle(0xffaaaa, 0.7);
+      const s = 0.55;
+      const ib1x = ebx + Math.cos(perpA) * earW * s;
+      const ib1y = eby + Math.sin(perpA) * earW * s;
+      const ib2x = ebx - Math.cos(perpA) * earW * s;
+      const ib2y = eby - Math.sin(perpA) * earW * s;
+      const itx = ebx + (tx - ebx) * 0.75;
+      const ity = eby + (ty - eby) * 0.75;
+      g.fillStyle(0xffaaaa, 0.8);
       g.fillTriangle(ib1x, ib1y, ib2x, ib2y, itx, ity);
     }
 
-    // === EYES (big, expressive) ===
-    const eyeOffset = hr * 0.38;
-    const eyeR = hr * 0.26;
+    // === EYES (simple cute dot eyes) ===
+    const eyeOffset = hr * 0.32;
+    const eyeR = hr * 0.13;
     for (const side of [-1, 1]) {
-      const ex = hx + Math.cos(angle) * hr * 0.28 + Math.cos(angle + Math.PI / 2) * eyeOffset * side;
-      const ey = hy + Math.sin(angle) * hr * 0.28 + Math.sin(angle + Math.PI / 2) * eyeOffset * side;
-
-      // Eye white
-      g.fillStyle(0xffffff, 1);
-      g.fillCircle(ex, ey, eyeR);
-      // Iris (colored ring)
-      g.fillStyle(0x66bb66, 0.9);
-      g.fillCircle(
-        ex + Math.cos(angle) * eyeR * 0.15,
-        ey + Math.sin(angle) * eyeR * 0.15,
-        eyeR * 0.7
-      );
-      // Pupil (vertical slit)
-      const px = ex + Math.cos(angle) * eyeR * 0.2;
-      const py = ey + Math.sin(angle) * eyeR * 0.2;
-      const slitH = eyeR * 0.65;
-      const slitW = eyeR * 0.22;
-      const perpAngle = angle + Math.PI / 2;
+      const ex = hx + Math.cos(angle) * hr * 0.3 + Math.cos(angle + Math.PI / 2) * eyeOffset * side;
+      const ey = hy + Math.sin(angle) * hr * 0.3 + Math.sin(angle + Math.PI / 2) * eyeOffset * side;
+      // Simple black dot
       g.fillStyle(0x111111, 1);
-      g.fillTriangle(
-        px + Math.cos(perpAngle) * slitW, py + Math.sin(perpAngle) * slitW,
-        px - Math.cos(perpAngle) * slitW, py - Math.sin(perpAngle) * slitW,
-        px + Math.cos(angle - Math.PI / 2) * slitH, py + Math.sin(angle - Math.PI / 2) * slitH,
+      g.fillCircle(ex, ey, eyeR);
+      // Tiny eye shine
+      g.fillStyle(0xffffff, 0.9);
+      g.fillCircle(
+        ex - Math.cos(angle) * eyeR * 0.3 + Math.cos(angle + Math.PI / 2) * eyeR * 0.2,
+        ey - Math.sin(angle) * eyeR * 0.3 + Math.sin(angle + Math.PI / 2) * eyeR * 0.2,
+        eyeR * 0.35
       );
-      g.fillTriangle(
-        px + Math.cos(perpAngle) * slitW, py + Math.sin(perpAngle) * slitW,
-        px - Math.cos(perpAngle) * slitW, py - Math.sin(perpAngle) * slitW,
-        px + Math.cos(angle + Math.PI / 2) * slitH, py + Math.sin(angle + Math.PI / 2) * slitH,
-      );
-      // Eye shine
-      g.fillStyle(0xffffff, 0.8);
-      g.fillCircle(ex - Math.cos(angle) * eyeR * 0.15 + Math.cos(angle + Math.PI / 2) * eyeR * 0.1,
-                    ey - Math.sin(angle) * eyeR * 0.15 + Math.sin(angle + Math.PI / 2) * eyeR * 0.1,
-                    eyeR * 0.2);
     }
 
-    // === NOSE ===
-    const nx = hx + Math.cos(angle) * hr * 0.55;
-    const ny = hy + Math.sin(angle) * hr * 0.55;
+    // === NOSE (tiny pink triangle) ===
+    const nx = hx + Math.cos(angle) * hr * 0.5;
+    const ny = hy + Math.sin(angle) * hr * 0.5;
     const nosePerp = angle + Math.PI / 2;
-    g.fillStyle(0xff7788, 1);
+    const noseSize = Math.max(2.5, hr * 0.12);
+    g.fillStyle(0xff8899, 1);
     g.fillTriangle(
-      nx + Math.cos(angle) * 3, ny + Math.sin(angle) * 3,
-      nx + Math.cos(nosePerp) * 3, ny + Math.sin(nosePerp) * 3,
-      nx - Math.cos(nosePerp) * 3, ny - Math.sin(nosePerp) * 3,
+      nx + Math.cos(angle) * noseSize, ny + Math.sin(angle) * noseSize,
+      nx + Math.cos(nosePerp) * noseSize, ny + Math.sin(nosePerp) * noseSize,
+      nx - Math.cos(nosePerp) * noseSize, ny - Math.sin(nosePerp) * noseSize,
     );
 
-    // === MOUTH (little smile lines) ===
+    // === MOUTH (cute "w" shaped cat mouth) ===
     const mx = nx + Math.cos(angle) * 2;
     const my = ny + Math.sin(angle) * 2;
-    g.lineStyle(1.5, darkColor, 0.5);
+    g.lineStyle(1.5, 0x555555, 0.6);
+    // Center line going down
+    const mLen = hr * 0.15;
+    const downAngle = angle;
+    const mdx = mx + Math.cos(downAngle) * mLen;
+    const mdy = my + Math.sin(downAngle) * mLen;
+    g.lineBetween(mx, my, mdx, mdy);
+    // Two curves going out from the bottom (the "w" shape)
     for (const side of [-1, 1]) {
-      const sa = angle + Math.PI / 2 * side * 0.3 + Math.PI * 0.15 * side;
-      g.lineBetween(mx, my, mx + Math.cos(sa) * hr * 0.25, my + Math.sin(sa) * hr * 0.25);
+      const wa = angle + Math.PI / 2 * side * 0.4 + Math.PI * 0.12 * side;
+      g.lineBetween(mdx, mdy, mdx + Math.cos(wa) * hr * 0.18, mdy + Math.sin(wa) * hr * 0.18);
     }
 
-    // === WHISKERS (longer, more visible) ===
-    g.lineStyle(1.5, 0xdddddd, 0.6);
+    // === WHISKERS (simple, 3 per side) ===
+    g.lineStyle(1, 0xcccccc, 0.5);
     for (const side of [-1, 1]) {
       const wBase = angle + Math.PI / 2 * side;
-      const wx = nx + Math.cos(wBase) * 5;
-      const wy = ny + Math.sin(wBase) * 5;
+      const wx = nx + Math.cos(wBase) * 4;
+      const wy = ny + Math.sin(wBase) * 4;
       for (let w = -1; w <= 1; w++) {
-        const wa = wBase + w * 0.25;
-        g.lineBetween(wx, wy, wx + Math.cos(wa) * hr * 1.1, wy + Math.sin(wa) * hr * 1.1);
+        const wa = wBase + w * 0.22;
+        g.lineBetween(wx, wy, wx + Math.cos(wa) * hr * 0.85, wy + Math.sin(wa) * hr * 0.85);
       }
     }
 
